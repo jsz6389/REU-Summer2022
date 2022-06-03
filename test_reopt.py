@@ -4,10 +4,14 @@ Tests reopt on binaries stored in a config file
 import os, time, subprocess, argparse
 
 
+"""
+Lifts the specified program in reopt
+"""
 def reopt(program, extension, options):
     print("reopt:",program+extension,options)
     ret = os.popen("which "+program.split()[0])
     location = ret.read().strip()
+    print("reopt "+options+" -o "+program+extension+" "+location+" &> "+program+extension+".out")
     ret = os.system("reopt "+options+" -o "+program+extension+" "+location+" &> "+program+extension+".out")
     os.system("reopt-explore "+location+" &> "+program+extension+".explore")
 
@@ -19,6 +23,9 @@ def reopt(program, extension, options):
     return ret
 
 
+"""
+Reads a config file containing newline separated commands and arguments
+"""
 def read_config(filename):
     programs = []
     with open(filename, 'r') as file:
@@ -28,6 +35,10 @@ def read_config(filename):
     return programs
 
 
+"""
+Takes in the name of a command and attempts to run it. Program output is sent to /dev/null.
+The return value is returned from the function.
+"""
 def test_functionality(filename):
     ret = os.system(filename + " > /dev/null")
     if ret == 0:
@@ -37,6 +48,9 @@ def test_functionality(filename):
     return ret
 
 
+"""
+Runs an input program n times and tests the execution speed.
+"""
 def test_speed(filename, n):
     start = time.time()
 
@@ -49,7 +63,10 @@ def test_speed(filename, n):
     return run_time
 
 
-def test_programs(programs, output):
+"""
+Runs tests on the programs
+"""
+def test_programs(programs, output, extension, options):
     for filename in programs: 
         just_prog = filename.split()[0]
         args = ""
@@ -57,10 +74,10 @@ def test_programs(programs, output):
             args = filename.split()[1]
         write_file(output, filename+",")
 
-        ret = reopt(just_prog,".exe","")
+        ret = reopt(just_prog,extension,options)
         write_file(output, str(ret)+",")
         if ret==0: 
-            ret=test_functionality("./"+just_prog+".exe "+args)
+            ret=test_functionality("./"+just_prog+extension+" "+args)
         write_file(output, str(ret)+",")
         if ret==0:
             speed = 0
@@ -68,7 +85,8 @@ def test_programs(programs, output):
             write_file(output, str(speed)+",")
         else:
             write_file(output, "N/A,")
-
+        write_file(output, "\n")
+"""
         ret = reopt(just_prog,".o1","--opt-level=1")
         write_file(output, str(ret)+",")
         if ret==0: 
@@ -104,8 +122,7 @@ def test_programs(programs, output):
             write_file(output, str(speed)+",")
         else:
             write_file(output, "N/A,")
-
-        write_file(output, "\n")
+"""
 
 
 def write_file(filename, content):
@@ -123,10 +140,18 @@ def main():
             type=str,
             help="Input filename containing list of programs to test. Default is programs.txt",
             default="programs.txt")
+    parser.add_argument("-r", "--reopt-args",
+            type=str,
+            help="Arguments to be passed to reopt",
+            default="")
+    parser.add_argument("-e", "--extension",
+            type=str,
+            help="Extension to be used for output",
+            default=".exe")
     args = parser.parse_args()
-    write_file(args.output, "program name,lifts, functional,speed,o1 lifts, o1 functional, o1 speed,o2 lifts, o2 functional, o2 speed, o3 lifts, o3 functional, o3 speed\n")
+    write_file(args.output, "program name,lifts, functional,speed\n")
     programs = read_config(args.input)
-    test_programs(programs, args.output)
+    test_programs(programs, args.output, args.extension, args.reopt_args)
     
 
 if __name__=="__main__":
