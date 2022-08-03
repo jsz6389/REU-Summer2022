@@ -36,7 +36,7 @@ size () {
 	        return
 	fi
 
-	mcsema-lift-11.0 \
+	mcsema-lift-${version}.0 \
 	        --arch amd64 \
 	        --os linux \
 	        --cfg ./$1.cfg \
@@ -51,11 +51,11 @@ size () {
 	        return
 	fi
 
-	llvm-dis-11 $1.bc
+	llvm-dis-${version} $1.bc
 	if [ $apt == "true" ]; then
 		for i in `ldd $1 | awk '!/^\t\//' | awk '!/^\tlinux-vdso/' | awk '{split($1,q,/\.so/); print(q[1]);}' | sed 's/$/-dev/'`; do yes | sudo apt-get install $i ; done
 	fi
-	remill-clang-11 -o $1.lifted ./$1.ll -lmcsema_rt64-11.0 -lm -v \
+	remill-clang-${version} -o $1.lifted ./$1.ll -lmcsema_rt64-${version}.0 -lm -v \
         	`ldd $1 | awk '!/^\t\//' | awk '!/^\tlinux-vdso/' | awk '{split($1,q,/\.so/); print(q[1]);}' | sed 's/lib/-l/'`
 
 	if [ $? != 0 ]; then
@@ -81,11 +81,14 @@ segfault () {
 
 
 apt="false"
+version="9"
 for arg in $@ 
 do
 	if [ ${arg:0:1} == "-" ]; then
 		if [[ "$arg" =~ "a" ]]; then
 			apt="true"
+		elif [[ "$arg" =~ "v" ]]; then
+			version=""
 		fi
 	fi
 done
