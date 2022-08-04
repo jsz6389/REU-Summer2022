@@ -73,6 +73,25 @@ void create_declaration(const std::unique_ptr<Module>& mod, IRBuilder<>& builder
 }
 
 
+/* Locates where a function is called within a module
+ *
+ * @param func_name The name of the function to find
+ *
+ * @param mod The module
+ */
+void find_call(const char* func_name, const std::unique_ptr<Module>& mod)
+{
+    const auto function_call = mod->getFunction(func_name);
+    
+    for (const auto& user : function_call->users()){
+        if (!llvm::isa<CallInst>(user)){
+            continue;
+        }
+        printf("Identified a call to %s\n", func_name);
+    }
+}
+
+
 int main(int argc, char** argv)
 {
     if (argc < 2) {
@@ -92,6 +111,7 @@ int main(int argc, char** argv)
 
     std::string func_name = "printf";
 	create_declaration(Mod, builder, "printf");
+    find_call("__printf_chk", Mod);
     dump("output.ll", Mod);
 
 }
