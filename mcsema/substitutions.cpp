@@ -1,3 +1,15 @@
+/* SPDX-License-Identifier: MIT
+ *
+ * substitutions.cpp
+ *
+ * Substitute equivalent functions in an LLVM IR file
+ *
+ * Copyright (C) 2022 Jakob Zielinski <jsz6389@rit.edu>
+ */
+#include <iostream>
+#include <fstream>
+#include <utility>
+
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Verifier.h>
@@ -22,6 +34,45 @@ using llvm::ArrayRef;
 using llvm::ConstantDataArray;
 using namespace llvm;
 
+
+/* Dumps the LLVM IR from a module to a file
+ * 
+ * @param path The path to which the LLVM IR will be dumped
+ *
+ * @param mod The module from which the LLVM IR will be dumped
+ */
+void dump(const char* path, std::unique_ptr<Module>& mod)
+{
+    std::string ir;
+    llvm::raw_string_ostream stream(ir);
+    mod->print(stream, nullptr);
+
+    std::ofstream output(path);
+    output << ir;
+    output.close();
+}
+
+
+/* Creates a new function declaration with the LLVM module
+ *
+ * @param mod The module
+ *
+ * @param build The IR builder
+ *
+ * @param func_name The name of the function to be declared
+ *
+ * TODO Create semantics for the modifications of arguments in declared function
+ */
+void create_declaration(const std::unique_ptr<Module>& mod, IRBuilder<>& builder, const char* func_name)
+{
+    std::vector<Type*> args = { builder.getInt8Ty()->getPointerTo(), builder.getInt64Ty() };
+    auto function_type = FunctionType::get(builder.getInt64Ty(), args, false);
+
+    mod->getOrInsertFunction(func_name, function_type);
+    printf("Created declaration for external function %s\n", func_name);
+}
+
+
 int main(int argc, char** argv)
 {
     if (argc < 2) {
@@ -30,6 +81,7 @@ int main(int argc, char** argv)
     }
 
     static LLVMContext Context;
+	IRBuilder<> builder(Context);
     SMDiagnostic Err;
     std::unique_ptr<Module> Mod = parseIRFile(argv[1], Err, Context);
 
@@ -37,5 +89,9 @@ int main(int argc, char** argv)
         Err.print(argv[0], errs());
         return 1;
     }
+
+    std::string func_name = "printf";
+	create_declaration(Mod, builder, "printf");
+    dump("output.ll", Mod);
 
 }
