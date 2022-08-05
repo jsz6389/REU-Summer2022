@@ -106,8 +106,7 @@ void substitute(func_map map, const std::unique_ptr<Module>& mod, IRBuilder<>& b
          */
         printf("%d operands in %s\n", user->getNumOperands(), map.og_func);
 
-        const int arg_size = map.args.size();
-        std::array<llvm::Value*, 7> new_func_args;
+        std::vector<llvm::Value*> new_func_args(map.args.size());
         for (const auto &item : map.args) {
             new_func_args[item.second] = user->getOperand(item.first);
         }
