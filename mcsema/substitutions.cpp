@@ -38,10 +38,73 @@ using namespace llvm;
 
 class func_map {                // A mapping of one function to another
     public:                     //
-    const char* og_func;              // The name of the original function
-    const char* new_func;             // The name of the function that the original function will be replaced with
+    const char* og_func;        // The name of the original function
+    const char* new_func;       // The name of the function that the original function will be replaced with
     std::map<int, int> args;    // A map of the arguments by index in the original function to the new function
 };
+
+
+/* Reads the function mapping config from a file
+ *
+ * @param filepath The config file to read from
+ *
+ * @return A vector containing the function maps
+ */
+std::vector<func_map> read_map_config(const char* filepath){
+    // setup
+    std::ifstream file;
+    file.open(filepath);
+    std::string line;
+    std::vector<func_map> maps;
+    
+    if (file.is_open()) { while (getline(file, line)) {
+        func_map* map = new func_map;
+
+        // Skip comments
+        if (line.substr(0,1) == "#") {
+            continue;
+        }
+
+        // Evaluate the line 
+        int start = 0;
+        int count = 0;
+        int end = line.find(",");
+        char* og_str;
+        char* new_str;
+        std::string token;
+
+        while (end != -1) {
+            token = line.substr(start, end-start);
+            start = end + 1;
+            end = line.find(",", start);
+
+
+            switch(count) {
+                case 0:
+                og_str = (char *)malloc(sizeof(char)*strlen(token.c_str()));
+                strcpy(og_str,token.c_str());
+                map->og_func = og_str;
+
+                case 1:
+                new_str = (char *)malloc(sizeof(char)*strlen(token.c_str()));
+                strcpy(new_str,token.c_str());
+                map->new_func = new_str;
+            }
+
+            count += 1;
+
+        }
+        token = line.substr(start, end-start);
+        printf("%d:%s\n", count, token.c_str());
+
+        // Read the function argument map
+        
+
+    } }
+    file.close();
+
+    return maps;
+}
 
 
 /* Dumps the LLVM IR from a module to a file
@@ -74,7 +137,6 @@ void dump(const char* path, std::unique_ptr<Module>& mod)
  */
 void create_declaration(const std::unique_ptr<Module>& mod, IRBuilder<>& builder, const char* func_name)
 {
-    //std::vector<Type*> args = { builder.getInt8Ty()->getPointerTo(), builder.getInt64Ty() };
     std::vector<Type*> args = {};
     auto function_type = FunctionType::get(builder.getInt64Ty(), args, true);
 
@@ -94,8 +156,18 @@ void create_declaration(const std::unique_ptr<Module>& mod, IRBuilder<>& builder
 void substitute(func_map map, const std::unique_ptr<Module>& mod, IRBuilder<>& builder)
 {
     Function* function_call = mod->getFunction(map.og_func);
+    if (!function_call) {
+        fprintf(stderr, "Failed to find function call %s\n", map.og_func);
+        exit(1);
+    }
+
     Function* new_func_inst = mod->getFunction(map.new_func);
+    if (!new_func_inst) {
+        fprintf(stderr, "Failed to find function call %s\n", map.new_func);
+        exit(1);
+    }
     
+    // Loop through every instance where the og function is used
     for (const auto& user : function_call->users()){
         // Check to make sure the function reference is a call instruction
         if (!llvm::isa<CallInst>(user)){
@@ -123,7 +195,7 @@ void substitute(func_map map, const std::unique_ptr<Module>& mod, IRBuilder<>& b
 int main(int argc, char** argv)
 {
     if (argc < 2) {
-        errs() << "Expected an argument - IR file name\n";
+        fprintf(stderr, "Expected an argument - IR file name\n");
         exit(1);
     }
 
@@ -136,6 +208,10 @@ int main(int argc, char** argv)
         Err.print(argv[0], errs());
         return 1;
     }
+
+    // TODO Read function mappings from config files
+    
+    read_map_config("input.conf");
 
     func_map myMap;
     myMap.og_func = "__printf_chk";
