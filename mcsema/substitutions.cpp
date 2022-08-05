@@ -85,9 +85,11 @@ void create_declaration(const std::unique_ptr<Module>& mod, IRBuilder<>& builder
 
 /* Subititutes one function for another within a module
  *
- * @param func_name The name of the function to find
+ * @param map Map of the old function onto the new function
  *
  * @param mod The module
+ *
+ * @param builder The IRBuilder
  */
 void substitute(func_map map, const std::unique_ptr<Module>& mod, IRBuilder<>& builder)
 {
@@ -95,26 +97,25 @@ void substitute(func_map map, const std::unique_ptr<Module>& mod, IRBuilder<>& b
     Function* new_func_inst = mod->getFunction(map.new_func);
     
     for (const auto& user : function_call->users()){
+        // Check to make sure the function reference is a call instruction
         if (!llvm::isa<CallInst>(user)){
             continue;
         }
-        printf("Identified a call to %s\n", map.og_func);
-        /* TODO Substitute function call
-         * https://llvm.org/doxygen/classllvm_1_1Function.html
-         * https://llvm.org/doxygen/namespacellvm.html
-         *
-         */
-        printf("%d operands in %s\n", user->getNumOperands(), map.og_func);
+        printf("Identified a call to %s with %d operands.\n", map.og_func, user->getNumOperands());
 
+        // Create a list of arguments for the new functions using the provided mapping
         std::vector<llvm::Value*> new_func_args(map.args.size());
         for (const auto &item : map.args) {
             new_func_args[item.second] = user->getOperand(item.first);
         }
 
+        // Create the call instruction for the new function
         const auto call_instruction = llvm::cast<CallInst>(user);
         builder.SetInsertPoint(call_instruction->getNextNode());
-        llvm::Value *hello = builder.CreateGlobalStringPtr("Hello world!\n");
         builder.CreateCall(new_func_inst, new_func_args);
+
+        // Delete old function call
+        call_instruction->eraseFromParent();
     }
 }
 
