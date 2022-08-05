@@ -79,15 +79,25 @@ void create_declaration(const std::unique_ptr<Module>& mod, IRBuilder<>& builder
  *
  * @param mod The module
  */
-void find_call(const char* func_name, const std::unique_ptr<Module>& mod)
+void find_call(const char* og_func, const char* new_func, const std::unique_ptr<Module>& mod, IRBuilder<>& builder)
 {
-    const auto function_call = mod->getFunction(func_name);
+    Function* function_call = mod->getFunction(og_func);
+    Function* new_func_inst = mod->getFunction(new_func);
     
     for (const auto& user : function_call->users()){
         if (!llvm::isa<CallInst>(user)){
             continue;
         }
-        printf("Identified a call to %s\n", func_name);
+        printf("Identified a call to %s\n", og_func);
+    /* TODO Substitute function call
+     * https://llvm.org/doxygen/classllvm_1_1Function.html
+     * https://llvm.org/doxygen/namespacellvm.html
+     *
+     */
+        const auto call_instruction = llvm::cast<CallInst>(user);
+        builder.SetInsertPoint(call_instruction->getNextNode());
+        llvm::Value *hello = builder.CreateGlobalStringPtr("Hello world!\n");
+        builder.CreateCall(new_func_inst, {hello});
     }
 }
 
@@ -111,7 +121,7 @@ int main(int argc, char** argv)
 
     std::string func_name = "printf";
 	create_declaration(Mod, builder, "printf");
-    find_call("__printf_chk", Mod);
+    find_call("__printf_chk", "printf", Mod, builder);
     dump("output.ll", Mod);
 
 }
