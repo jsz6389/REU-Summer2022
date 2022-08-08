@@ -220,8 +220,12 @@ void substitute(func_map map, const std::unique_ptr<Module>& mod, IRBuilder<>& b
         builder.SetInsertPoint(call_instruction->getNextNode());
         const auto new_call_instruction = builder.CreateCall(new_func_inst, new_func_args);
 
-        // Fix return value in store instruction
-        builder.CreateAlignedStore(new_call_instruction, store_instruction->getOperand(1), MaybeAlign(8));
+        // Fix return value in next instruction
+        if (llvm::isa<StoreInst>(store_instruction)){
+            builder.CreateAlignedStore(new_call_instruction, store_instruction->getOperand(1), MaybeAlign(8));
+        } else if (llvm::isa<ReturnInst>(store_instruction)){
+            builder.CreateRet(new_call_instruction);
+        }
 
         // Delete old instructions
         call_instruction->eraseFromParent();
