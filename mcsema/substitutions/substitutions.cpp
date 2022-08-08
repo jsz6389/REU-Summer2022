@@ -216,11 +216,17 @@ void substitute(func_map map, const std::unique_ptr<Module>& mod, IRBuilder<>& b
 
         // Create the call instruction for the new function
         const auto call_instruction = llvm::cast<CallInst>(user);
+        const auto store_instruction = call_instruction->getNextNode();
         builder.SetInsertPoint(call_instruction->getNextNode());
-        builder.CreateCall(new_func_inst, new_func_args);
+        const auto new_call_instruction = builder.CreateCall(new_func_inst, new_func_args);
 
-        // Delete old function call
+        // Fix return value in store instruction
+        builder.CreateAlignedStore(new_call_instruction, store_instruction->getOperand(1), MaybeAlign(8));
+
+        // Delete old instructions
         call_instruction->eraseFromParent();
+        store_instruction->eraseFromParent();
+
     }
 }
 
