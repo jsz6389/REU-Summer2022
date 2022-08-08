@@ -98,7 +98,13 @@ std::vector<func_map> read_map_config(const char* filepath){
         printf("%d:%s\n", count, token.c_str());
 
         // Read the function argument map
-        
+        start = 0;
+        count = 0;
+        end = token.find("|");
+        std::string token2;
+        //while (end != -1) {
+        //    token = 
+        //}
 
     } }
     file.close();
@@ -199,6 +205,7 @@ int main(int argc, char** argv)
         exit(1);
     }
 
+    // Setup irbuilder and module
     static LLVMContext Context;
 	IRBuilder<> builder(Context);
     SMDiagnostic Err;
@@ -211,21 +218,39 @@ int main(int argc, char** argv)
 
     // TODO Read function mappings from config files
     
-    read_map_config("input.conf");
+    //read_map_config("input.conf");
 
-    func_map myMap;
-    myMap.og_func = "__printf_chk";
-    myMap.new_func = "printf";
-    myMap.args[1] = 0;
-    myMap.args[2] = 1;
-    myMap.args[3] = 2;
-    myMap.args[4] = 3;
-    myMap.args[5] = 4;
-    myMap.args[6] = 5;
-    myMap.args[7] = 6;
+    func_map printf;
+    printf.og_func = "__printf_chk";
+    printf.new_func = "printf";
+    printf.args[1] = 0;
+    printf.args[2] = 1;
+    printf.args[3] = 2;
+    printf.args[4] = 3;
+    printf.args[5] = 4;
+    printf.args[6] = 5;
+    printf.args[7] = 6;
 
-	create_declaration(Mod, builder, "printf");
-    substitute(myMap, Mod, builder);
-    dump("output.ll", Mod);
+    func_map fprintf;
+    fprintf.og_func = "__fprintf_chk";
+    fprintf.new_func = "fprintf";
+    fprintf.args[1] = 0;
+    fprintf.args[2] = 1;
+    fprintf.args[3] = 2;
+    fprintf.args[4] = 3;
+    fprintf.args[5] = 4;
+    fprintf.args[6] = 5;
+    fprintf.args[7] = 6;
+
+    std::vector<func_map> func_map_list;
+    func_map_list.push_back(printf);
+    func_map_list.push_back(fprintf);
+
+    // Iterate through the list of function mappings
+    for (func_map map : func_map_list) {
+	    create_declaration(Mod, builder, map.new_func);
+        substitute(map, Mod, builder);
+        dump("output.ll", Mod);
+    }
 
 }
