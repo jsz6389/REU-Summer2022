@@ -174,7 +174,7 @@ void create_declaration(const std::unique_ptr<Module>& mod, IRBuilder<>& builder
     auto function_type = FunctionType::get(builder.getInt64Ty(), args, true);
 
     mod->getOrInsertFunction(func_name, function_type);
-    printf(" Created declaration for external function \033[1,34m%s\0330m\n", func_name);
+    printf(" Created declaration for external function \033[1;34m%s\033[0m\n", func_name);
 }
 
 
@@ -232,6 +232,9 @@ int main(int argc, char** argv)
         exit(1);
     }
 
+    const char* config_file = "input.conf";
+    std::vector<func_map> func_map_list = read_map_config(config_file);
+
     // Iterate through IR files
     for (int i = 1;i<argc;i++) {
         printf("\033[1;32m\n%s\033[0m\n", argv[i]);
@@ -240,14 +243,11 @@ int main(int argc, char** argv)
     	IRBuilder<> builder(Context);
         SMDiagnostic Err;
         std::unique_ptr<Module> Mod = parseIRFile(argv[i], Err, Context);
-        const char* config_file = "input.conf";
     
         if (!Mod) {
             Err.print(argv[0], errs());
             return 1;
         }
-        
-        std::vector<func_map> func_map_list = read_map_config(config_file);
     
         // Iterate through the list of function mappings
         for (func_map map : func_map_list) {
