@@ -11,6 +11,9 @@
 #include <utility>
 #include <map>
 
+#include <errno.h>
+#include <sys/stat.h>
+
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Verifier.h>
@@ -111,7 +114,6 @@ std::vector<func_map> read_map_config(const char* filepath){
 
             split = token.find(":", 0);
             map->args[std::stoi(token.substr(0, split))] = std::stoi(token.substr(split+1));
-            //printf("Token: %d:%d\n", std::stoi(token.substr(0,split)),std::stoi(token.substr(split+1))); 
 
             if (do_break) {
                 break;
@@ -136,11 +138,21 @@ std::vector<func_map> read_map_config(const char* filepath){
  */
 void dump(const char* path, std::unique_ptr<Module>& mod)
 {
+    int err = mkdir("output", 0777);
+    if (err == -1 && errno != EEXIST) {
+        fprintf(stderr, "Failed to create output directory. Errno %d\n", errno);
+        exit(errno);
+    }
+
+    std::string cpp_path = path;
+    cpp_path.insert(0, "./output/");
+    printf("Outputting IR to %s\n", cpp_path.c_str());
+
     std::string ir;
     llvm::raw_string_ostream stream(ir);
     mod->print(stream, nullptr);
 
-    std::ofstream output(path);
+    std::ofstream output(cpp_path.c_str());
     output << ir;
     output.close();
 }
@@ -185,7 +197,7 @@ void substitute(func_map map, const std::unique_ptr<Module>& mod, IRBuilder<>& b
     Function* new_func_inst = mod->getFunction(map.new_func);
     if (!new_func_inst) {
         fprintf(stderr, "Failed to find function call %s\n", map.new_func);
-        exit(1);
+        return;
     }
     
     // Loop through every instance where the og function is used
@@ -220,54 +232,28 @@ int main(int argc, char** argv)
         exit(1);
     }
 
-    // Setup irbuilder and module
-    static LLVMContext Context;
-	IRBuilder<> builder(Context);
-    SMDiagnostic Err;
-    std::unique_ptr<Module> Mod = parseIRFile(argv[1], Err, Context);
-    const char* config_file = "input.conf";
-
-    if (!Mod) {
-        Err.print(argv[0], errs());
-        return 1;
-    }
-
-    // TODO Read function mappings from config files
+    // Iterate through IR files
+    for (int i = 1;i<argc;i++) {
+        printf("\n%s\n", argv[i]);
+        // Setup irbuilder and module
+        static LLVMContext Context;
+    	IRBuilder<> builder(Context);
+        SMDiagnostic Err;
+        std::unique_ptr<Module> Mod = parseIRFile(argv[i], Err, Context);
+        const char* config_file = "input.conf";
     
-    std::vector<func_map> func_map_list = read_map_config(config_file);
-/*
-    func_map printf;
-    printf.og_func = "__printf_chk";
-    printf.new_func = "printf";
-    printf.args[1] = 0;
-    printf.args[2] = 1;
-    printf.args[3] = 2;
-    printf.args[4] = 3;
-    printf.args[5] = 4;
-    printf.args[6] = 5;
-    printf.args[7] = 6;
-
-    func_map fprintf;
-    fprintf.og_func = "__fprintf_chk";
-    fprintf.new_func = "fprintf";
-    fprintf.args[1] = 0;
-    fprintf.args[2] = 1;
-    fprintf.args[3] = 2;
-    fprintf.args[4] = 3;
-    fprintf.args[5] = 4;
-    fprintf.args[6] = 5;
-    fprintf.args[7] = 6;
-
-    std::vector<func_map> func_map_list;
-    func_map_list.push_back(printf);
-    func_map_list.push_back(fprintf);
-*/
-    // Iterate through the list of function mappings
-    for (func_map map : func_map_list) {
-        create_declaration(Mod, builder, map.new_func);
-        substitute(map, Mod, builder);
+        if (!Mod) {
+            Err.print(argv[0], errs());
+            return 1;
+        }
+        
+        std::vector<func_map> func_map_list = read_map_config(config_file);
+    
+        // Iterate through the list of function mappings
+        for (func_map map : func_map_list) {
+            create_declaration(Mod, builder, map.new_func);
+            substitute(map, Mod, builder);
+        }
+        dump(argv[i], Mod);
     }
-
-    dump("output.ll", Mod);
-
 }
