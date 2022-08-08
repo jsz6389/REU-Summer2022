@@ -140,13 +140,13 @@ void dump(const char* path, std::unique_ptr<Module>& mod)
 {
     int err = mkdir("output", 0777);
     if (err == -1 && errno != EEXIST) {
-        fprintf(stderr, "Failed to create output directory. Errno %d\n", errno);
+        fprintf(stderr, "\033[1;31mFailed to create output directory. Errno\033[0m %d\n", errno);
         exit(errno);
     }
 
     std::string cpp_path = path;
     cpp_path.insert(0, "./output/");
-    printf("Outputting IR to %s\n", cpp_path.c_str());
+    printf(" Outputting IR to \033[1;32m%s\033[0m\n", cpp_path.c_str());
 
     std::string ir;
     llvm::raw_string_ostream stream(ir);
@@ -174,7 +174,7 @@ void create_declaration(const std::unique_ptr<Module>& mod, IRBuilder<>& builder
     auto function_type = FunctionType::get(builder.getInt64Ty(), args, true);
 
     mod->getOrInsertFunction(func_name, function_type);
-    printf("Created declaration for external function %s\n", func_name);
+    printf(" Created declaration for external function \033[1,34m%s\0330m\n", func_name);
 }
 
 
@@ -190,13 +190,13 @@ void substitute(func_map map, const std::unique_ptr<Module>& mod, IRBuilder<>& b
 {
     Function* function_call = mod->getFunction(map.og_func);
     if (!function_call) {
-        fprintf(stderr, "Failed to find function call %s\n", map.og_func);
+        fprintf(stderr, "\033[1;31mFailed to find function call %s\033[0m\n", map.og_func);
         exit(1);
     }
 
     Function* new_func_inst = mod->getFunction(map.new_func);
     if (!new_func_inst) {
-        fprintf(stderr, "Failed to find function call %s\n", map.new_func);
+        fprintf(stderr, "\033[1;31mFailed to find function call %s\033[0m\n", map.new_func);
         return;
     }
     
@@ -206,7 +206,7 @@ void substitute(func_map map, const std::unique_ptr<Module>& mod, IRBuilder<>& b
         if (!llvm::isa<CallInst>(user)){
             continue;
         }
-        printf("Identified a call to %s with %d operands. Replacing function call with %s.\n", map.og_func, user->getNumOperands(), map.new_func);
+        printf(" Identified a call to \033[1;34m%s\033[0m with \033[1;33m%d\033[0m operands. Replacing function call with \033[1;34m%s\033[0m.\n", map.og_func, user->getNumOperands(), map.new_func);
 
         // Create a list of arguments for the new functions using the provided mapping
         std::vector<llvm::Value*> new_func_args(map.args.size());
@@ -228,13 +228,13 @@ void substitute(func_map map, const std::unique_ptr<Module>& mod, IRBuilder<>& b
 int main(int argc, char** argv)
 {
     if (argc < 2) {
-        fprintf(stderr, "Expected an argument - IR file name\n");
+        fprintf(stderr, "\033[1;31mExpected an argument - IR file name\033[0m\n");
         exit(1);
     }
 
     // Iterate through IR files
     for (int i = 1;i<argc;i++) {
-        printf("\n%s\n", argv[i]);
+        printf("\033[1;32m\n%s\033[0m\n", argv[i]);
         // Setup irbuilder and module
         static LLVMContext Context;
     	IRBuilder<> builder(Context);
