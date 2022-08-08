@@ -95,17 +95,32 @@ std::vector<func_map> read_map_config(const char* filepath){
 
         }
         token = line.substr(start, end-start);
-        printf("%d:%s\n", count, token.c_str());
+        line = token;
 
         // Read the function argument map
         start = 0;
         count = 0;
-        end = token.find("|");
-        std::string token2;
-        //while (end != -1) {
-        //    token = 
-        //}
+        int split = 0;
+        int do_break = 0;
+        end = line.find("|");
 
+        while (true) {
+            token = line.substr(start, end-start);
+            start = end+1;
+            end = line.find("|", start);
+
+            split = token.find(":", 0);
+            map->args[std::stoi(token.substr(0, split))] = std::stoi(token.substr(split+1));
+            //printf("Token: %d:%d\n", std::stoi(token.substr(0,split)),std::stoi(token.substr(split+1))); 
+
+            if (do_break) {
+                break;
+            } else if (end == -1) {
+                do_break = 1;
+            }
+        }
+
+        maps.push_back(*map);
     } }
     file.close();
 
@@ -179,7 +194,7 @@ void substitute(func_map map, const std::unique_ptr<Module>& mod, IRBuilder<>& b
         if (!llvm::isa<CallInst>(user)){
             continue;
         }
-        printf("Identified a call to %s with %d operands.\n", map.og_func, user->getNumOperands());
+        printf("Identified a call to %s with %d operands. Replacing function call with %s.\n", map.og_func, user->getNumOperands(), map.new_func);
 
         // Create a list of arguments for the new functions using the provided mapping
         std::vector<llvm::Value*> new_func_args(map.args.size());
@@ -210,6 +225,7 @@ int main(int argc, char** argv)
 	IRBuilder<> builder(Context);
     SMDiagnostic Err;
     std::unique_ptr<Module> Mod = parseIRFile(argv[1], Err, Context);
+    const char* config_file = "input.conf";
 
     if (!Mod) {
         Err.print(argv[0], errs());
@@ -218,8 +234,8 @@ int main(int argc, char** argv)
 
     // TODO Read function mappings from config files
     
-    //read_map_config("input.conf");
-
+    std::vector<func_map> func_map_list = read_map_config(config_file);
+/*
     func_map printf;
     printf.og_func = "__printf_chk";
     printf.new_func = "printf";
@@ -245,12 +261,13 @@ int main(int argc, char** argv)
     std::vector<func_map> func_map_list;
     func_map_list.push_back(printf);
     func_map_list.push_back(fprintf);
-
+*/
     // Iterate through the list of function mappings
     for (func_map map : func_map_list) {
-	    create_declaration(Mod, builder, map.new_func);
+        create_declaration(Mod, builder, map.new_func);
         substitute(map, Mod, builder);
-        dump("output.ll", Mod);
     }
+
+    dump("output.ll", Mod);
 
 }
