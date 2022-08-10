@@ -222,7 +222,7 @@ void substitute(func_map map, const std::unique_ptr<Module>& mod, IRBuilder<>& b
 
         // Fix return value in next instruction
         if (llvm::isa<StoreInst>(store_instruction)){
-            builder.CreateAlignedStore(new_call_instruction, store_instruction->getOperand(1), MaybeAlign(8));
+            builder.CreateStore(new_call_instruction, store_instruction->getOperand(1));
         } else if (llvm::isa<ReturnInst>(store_instruction)){
             builder.CreateRet(new_call_instruction);
         }
